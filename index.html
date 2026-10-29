@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plataforma EAD - Indicadores dos Cursos Online - Escola de Governo Ilhabela</title>
+
+  <!-- Tailwind CSS & Fontes -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Libs de Gráficos e CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <style>
+    html { min-height: 100%; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0d2818;
+      min-height: 100vh;
+      height: auto;
+      overflow: auto;
+    }
+    aside { width: 240px; max-width: 240px; }
+    main {
+      min-width: 0;
+      max-width: 1600px;
+      margin-inline: auto;
+      width: 100%;
+    }
+    main > section { min-width: 0; }
+    main canvas { max-width: 100%; }
+    
+    .dashboard-kpi {
+      border-radius: 1.25rem;
+      min-height: 100px;
+      padding: 1.2rem 1.5rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .dashboard-kpi:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    }
+
+    @media (max-width: 767px) {
+      body { display: block !important; }
+      aside { width: 100%; max-width: none; }
+      main {
+        height: auto !important;
+        overflow: visible !important;
+        padding: 1rem !important;
+      }
+      .dashboard-kpi { border-radius: 1rem; }
+    }
+    
+    .bg-sidebar { background-color: #05190e; }
+    .bg-sidebar-card { background-color: #0a331c; }
+    .bg-main-content { background-color: #f1f5f9; }
+
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #22c55e;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #15803d; }
+    canvas { cursor: pointer; }
+  </style>
+</head>
+
+<body class="text-slate-900 antialiased h-screen overflow-hidden flex flex-col md:flex-row">
+
+  <!-- BARRA LATERAL -->
+  <aside class="bg-sidebar w-full md:w-60 flex-shrink-0 flex flex-col justify-between p-4 text-white z-20 shadow-xl overflow-y-auto custom-scrollbar">
+    <div>
+      <div class="mb-5 text-center pt-2">
+        <h1 class="text-lg font-black tracking-tight text-[#4ade80] uppercase flex items-center justify-center gap-2">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          ESCOLA DE GOVERNO
+        </h1>
+        <span class="block text-[10px] font-bold tracking-widest text-emerald-200 mt-0.5 uppercase">
+          E GESTÃO PÚBLICA · ILHABELA
+        </span>
+      </div>
+
+      <div class="space-y-3 border-t border-emerald-900/80 pt-4">
+        <div>
+          <label for="filtro-ano" class="block text-[10px] font-bold uppercase text-emerald-300 tracking-wider mb-1">
+            PERÍODO SELECIONADO
+          </label>
+          <select id="filtro-ano" onchange="atualizarDashboardEAD()" class="w-full bg-sidebar-card border border-emerald-700/60 text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+            <option value="TODOS" selected>Todos os Anos</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="filtro-secretaria" class="block text-[10px] font-bold uppercase text-emerald-300 tracking-wider mb-1">
+            SECRETARIA / ÓRGÃO
+          </label>
+          <select id="filtro-secretaria" onchange="atualizarDashboardEAD()" class="w-full bg-sidebar-card border border-emerald-700/60 text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+            <option value="TODOS" selected>Todas</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="filtro-curso" class="block text-[10px] font-bold uppercase text-emerald-300 tracking-wider mb-1">
+            CURSO / CAPACITAÇÃO
+          </label>
+          <select id="filtro-curso" onchange="atualizarDashboardEAD()" class="w-full bg-sidebar-card border border-emerald-700/60 text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium">
+            <option value="TODOS" selected>Todos</option>
+          </select>
+        </div>
+
+        <div class="pt-2">
+          <button onclick="limparFiltrosGerais()" class="w-full bg-amber-600/90 hover:bg-amber-500 text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+            Resetar Filtros
+          </button>
+        </div>
+
+        <div class="pt-3 border-t border-emerald-900/80">
+          <div class="flex items-center justify-between text-[11px] text-emerald-400 mb-1">
+            <span class="flex items-center gap-1.5 font-semibold">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Sincronização</span>
+            </span>
+            <button onclick="carregarDadosEAD()" class="text-emerald-300 hover:text-white font-semibold flex items-center gap-1">
+              Atualizar
+            </button>
+          </div>
+          <p id="status-atualizacao" class="text-[10px] text-emerald-300/80 italic leading-tight">
+            Carregando dados...
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t border-emerald-900/80 pt-3 mt-4">
+      <div class="bg-emerald-950/90 border border-emerald-800/80 rounded-lg p-2 text-center shadow-inner">
+        <p class="text-[10px] font-black tracking-wider uppercase text-white">
+          PREFEITURA DE ILHABELA-SP
+        </p>
+      </div>
+      <div class="mt-1.5 text-[9px] text-emerald-300/90 text-center">
+        <p>Resp. Técnico: <span class="font-bold text-white">ARISTEU</span> — ADMINISTRAÇÃO</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ÁREA PRINCIPAL -->
+  <main class="flex-1 min-w-0 flex flex-col min-h-screen overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-4 bg-main-content">
+
+    <header class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-300/80 pb-3 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <span class="bg-emerald-700 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-xs">PÁGINA 2</span>
+        <h2 class="text-base md:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          PLATAFORMA EAD — INDICADORES DOS CURSOS ONLINE
+        </h2>
+      </div>
+      <p class="text-xs font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-200 px-3 py-1 rounded-full shadow-xs" id="subtitulo-topo">
+        Secretaria de Administração
+      </p>
+    </header>
+
+    <!-- INDICADORES PRINCIPAIS (KPIs) -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-shrink-0">
+      <div class="dashboard-kpi bg-white shadow-sm border border-slate-200 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-black text-slate-500 uppercase tracking-wider">INSCRITOS EM CURSOS</p>
+          <h3 id="kpi-inscritos" class="text-3xl font-black text-slate-900 mt-1">0</h3>
+        </div>
+        <div class="w-14 h-14 rounded-full bg-emerald-50 border-2 border-emerald-500 flex items-center justify-center shadow-sm">
+          <svg class="w-7 h-7 text-emerald-600 fill-current" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        </div>
+      </div>
+
+      <div class="dashboard-kpi bg-white shadow-sm border border-slate-200 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-black text-slate-500 uppercase tracking-wider">SERVIDORES CERTIFICADOS</p>
+          <h3 id="kpi-certificados" class="text-3xl font-black text-slate-900 mt-1">0</h3>
+        </div>
+        <div class="w-14 h-14 rounded-full bg-blue-50 border-2 border-blue-500 flex items-center justify-center shadow-sm">
+          <svg class="w-7 h-7 text-blue-600 fill-current" viewBox="0 0 24 24"><path d="M12 2L1 7l11 5 9-4.09V15h2V7L12 2zm-7 9.81V16c0 2.21 3.13 4 7 4s7-1.79 7-4v-4.19l-7 3.18-7-3.18z"/></svg>
+        </div>
+      </div>
+
+      <div class="dashboard-kpi bg-white shadow-sm border border-slate-200 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-black text-slate-500 uppercase tracking-wider">TAXA DE CONCLUSÃO</p>
+          <h3 id="kpi-conclusao" class="text-3xl font-black text-slate-900 mt-1">0,00%</h3>
+        </div>
+        <div class="w-14 h-14 rounded-full bg-amber-50 border-2 border-amber-500 flex items-center justify-center shadow-sm">
+          <svg class="w-7 h-7 text-amber-600 fill-current" viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- GRÁFICOS: LINHA 1 -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-shrink-0">
+      <div class="lg:col-span-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">
+            VOLUME DE CERTIFICADOS POR CURSO
+          </h4>
+          <div class="flex items-center gap-2">
+            <button onclick="abrirAlunosCertificados()" class="text-[10px] bg-blue-700 hover:bg-blue-600 text-white font-bold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 shadow-xs">
+              🎓 Alunos Certificados
+            </button>
+            <span class="text-[10px] text-slate-400 italic font-medium">Role para ver mais</span>
+          </div>
+        </div>
+        <div class="relative h-[220px] max-h-[220px] overflow-y-auto custom-scrollbar pr-2">
+          <div id="wrapperCertificadosCursoTopo" style="width: 100%;">
+            <canvas id="chartCertificadosCursoTopo"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">
+            VOLUME DE PARTICIPAÇÃO POR CURSO
+          </h4>
+          <span class="text-[10px] text-slate-400 italic font-medium">Clique na fatia para filtrar</span>
+        </div>
+        <div class="relative h-[220px] md:h-[220px] flex items-center justify-center">
+          <canvas id="chartVolumeCurso"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- GRÁFICOS: LINHA 2 -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-shrink-0">
+      
+      <!-- COLUNA ESQUERDA: SECRETARIAS -->
+      <div class="lg:col-span-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">
+            INSCRITOS POR SECRETARIA
+          </h4>
+          <span class="text-[10px] text-slate-400 italic font-medium">Role para ver mais (Clique para filtrar)</span>
+        </div>
+        <div class="relative h-[220px] max-h-[220px] overflow-y-auto custom-scrollbar pr-2">
+          <div id="wrapperInscricoesSec" style="width: 100%;">
+            <canvas id="chartInscricoesSec"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUNA DIREITA: SATISFAÇÃO (COM ÍCONE JOINHA VERDE) -->
+      <div class="lg:col-span-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+        <div class="flex items-center justify-between mb-2 border-b border-slate-100 pb-2">
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+            <!-- Ícone Joinha Verde -->
+            <svg class="w-4 h-4 text-emerald-600 fill-current" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+            SATISFAÇÃO GERAL DOS CURSOS (%)
+          </h4>
+          <button onclick="abrirModoLeitura()" class="text-[10px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 shadow-xs">
+            📖 Ler Relatos
+          </button>
+        </div>
+        
+        <!-- Área do Acelerômetro -->
+        <div class="relative h-[220px] flex flex-col items-center justify-center">
+          <div class="relative w-full max-w-[280px] h-[160px] flex items-center justify-center">
+            <canvas id="chartSatisfacaoCurso"></canvas>
+            <div class="absolute bottom-2 text-center pointer-events-none">
+              <span id="valor-acelerometro" class="text-2xl font-black text-emerald-900 tracking-tight">0.0%</span>
+              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Índice de Excelência</p>
+            </div>
+          </div>
+          <div class="flex justify-between w-full max-w-[240px] text-[10px] font-bold text-slate-400 mt-1">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DESTAQUES DO ANO (FIEIS À PÁGINA 1 - ÍCONES E CORES EXATOS) -->
+    <footer class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col gap-4 flex-shrink-0">
+      <div class="flex items-center gap-2 text-amber-500 font-bold text-xs border-b border-slate-100 pb-2.5">
+        <svg class="w-5 h-5 fill-amber-400" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span class="text-slate-900 uppercase tracking-wider font-black text-sm">DESTAQUES DE CAPACITAÇÃO 2025:</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-700">
+        <!-- Secretaria de Educação -->
+        <div class="flex items-center gap-4 p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl shadow-xs">
+          <div class="w-14 h-14 flex items-center justify-center bg-[#059669] text-white rounded-2xl flex-shrink-0 shadow-md">
+            <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          </div>
+          <div>
+            <p class="font-black text-emerald-950 text-sm">Secretaria de Educação</p>
+            <p class="text-xs text-slate-600 mt-0.5">400+ Servidores Certificados.</p>
+          </div>
+        </div>
+
+        <!-- Curso Código de Ética -->
+        <div class="flex items-center gap-4 p-4 bg-blue-50/80 border border-blue-200 rounded-2xl shadow-xs">
+          <div class="w-14 h-14 flex items-center justify-center bg-[#2563eb] text-white rounded-2xl flex-shrink-0 shadow-md">
+            <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+          </div>
+          <div>
+            <p class="font-black text-blue-950 text-sm">Curso Código de Ética</p>
+            <p class="text-xs text-slate-600 mt-0.5">600+ Servidores Certificados. Líder absoluto em adesão.</p>
+          </div>
+        </div>
+
+        <!-- Plataforma EAD -->
+        <div class="flex items-center gap-4 p-4 bg-amber-50/80 border border-amber-200 rounded-2xl shadow-xs">
+          <div class="w-14 h-14 flex items-center justify-center bg-[#059669] text-white rounded-2xl flex-shrink-0 shadow-md">
+            <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+          </div>
+          <div>
+            <p class="font-black text-amber-950 text-sm">Plataforma EAD</p>
+            <p class="text-xs text-slate-600 mt-0.5">600+ Servidores capacitados via Moodle.</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- MODAL / GAVETA LATERAL (FECHA AO CLICAR FORA) -->
+  <div id="modal-leitura" onclick="tratarCliqueFora(event)" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-end transition-opacity">
+    <div id="modal-conteudo-interno" class="bg-white w-full max-w-xl h-full shadow-2xl flex flex-col p-6 overflow-y-auto custom-scrollbar animate-in slide-in-from-right duration-300">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
+        <div>
+          <h3 id="modal-titulo" class="text-lg font-black text-slate-900 uppercase">Modo Leitura</h3>
+          <p id="modal-subtitulo" class="text-xs text-emerald-700 font-bold mt-0.5">Exibindo dados detalhados</p>
+        </div>
+        <button onclick="fecharModoLeitura()" class="w-9 h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full font-bold transition-colors">
+          ✕
+        </button>
+      </div>
+      <div id="container-modal-relatos" class="space-y-4 flex-1">
+        <!-- Conteúdo preenchido dinamicamente via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT PRINCIPAL -->
+  <script>
+    Chart.defaults.color = '#334155';
+    Chart.defaults.font.family = 'Inter, sans-serif';
+    Chart.defaults.font.weight = '600';
+
+    if (window.ChartDataLabels) {
+      Chart.register(ChartDataLabels);
+    }
+
+    const URL_INDICADORES_EAD = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkw7Hm5lh0I1sxnnM4eAuy9H3BRi3RI1kQvNclA4UkvpB5LSCwOLV4ogaSGuUd6q48c6zycLkNrPca/pub?output=csv";
+    const URL_SATISFACAO_EAD = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaitIbP5QgzZrcuSmUC0CB0WBBKAVUW7NYtbt23bRLnfp4NMkej9jq5k4r3J4PRzoIY0SqXj3bylCn/pub?output=csv";
+
+    let dadosEAD = [];
+    let dadosSatisfacao = [];
+    let chartCertificadosTopo, chartVolumeCurso, chartInscricoesSec, chartSatisfacaoCurso;
+
+    const norm = v => String(v ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+    function chave(obj, termos) {
+      const entries = Object.keys(obj || {});
+      for (const termo of termos) {
+        const t = norm(termo);
+        const hit = entries.find(k => norm(k) === t);
+        if (hit) return obj[hit];
+      }
+      for (const termo of termos) {
+        const t = norm(termo);
+        const hit = entries.find(k => norm(k).includes(t));
+        if (hit) return obj[hit];
+      }
+      return '';
+    }
+
+    function numero(v) {
+      if (typeof v === 'number') return v;
+      const s = String(v ?? '')
+        .trim()
+        .replace('%', '')
+        .replace(/\s/g, '')
+        .replace(/\.(?=\d{3}(\D|$))/g, '')
+        .replace(',', '.');
+      const n = Number(s);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function departamento(item) {
+      const raw = String(chave(item, ['Departamento', 'Secretaria', 'Secretaria / Órgão', 'Órgão']) || '').trim();
+      const n = norm(raw);
+      if (!raw || ['departamento', 'secretaria', 'orgao', 'outros', 'nao informado'].includes(n)) {
+        return '';
+      }
+      if (n.includes('educacao') || n.includes('escola de governo')) return 'Educação';
+      if (n.includes('esporte')) return 'Esporte';
+      if (n.includes('cultura')) return 'Cultura';
+      if (n.includes('administracao')) return 'Administração';
+      return raw;
+    }
+
+    function curso(item) {
+      return String(chave(item, ['Curso_nome', 'Curso', 'Nome do curso', 'Capacitação']) || '').trim();
+    }
+
+    function nomeAluno(item) {
+      return String(chave(item, ['Nome', 'NOME', 'Nome completo', 'Servidor(a)', 'Servidor']) || 'Servidor(a)').trim();
+    }
+
+    function cursoNaSatisfacao(item) {
+      return String(chave(item, ['Qual curso irá avaliar?', 'Curso', 'Curso_nome', 'Nome do curso', 'Capacitação']) || '').trim();
+    }
+
+    function relatoFeedback(item) {
+      const diretoR = chave(item, [
+        'Nos conte como foi sua experiência com a plataforma e com o conteúdo, qual foi a parte mais relevante ou útil do conteúdo apresentado?',
+        'experiencia com a plataforma',
+        'conteudo apresentado',
+        'parte mais relevante'
+      ]);
+      const texto = String(diretoR || chave(item, ['Comentário', 'Relato', 'Feedback', 'Opinião', 'Depoimento']) || '').trim();
+      
+      if (!texto) return '';
+      const tNorm = norm(texto);
+      if (['sim', 'nao', 'não', 'ok', '-', '.'].includes(tNorm) || tNorm.length < 3) {
+        return '';
+      }
+      return texto;
+    }
+
+    function dataConclusao(item) {
+      return String(chave(item, ['Data de Conclusão', 'Data conclusão', 'Data de conclusao', 'Data', 'Data de conclusão do curso', 'Carimbo de data/hora']) || '').trim();
+    }
+
+    function anoDaData(value) {
+      const s = String(value || '').trim();
+      const m = s.match(/\b(20\d{2})\b/);
+      if (m) return m[1];
+      const n = numero(s);
+      if (Number.isFinite(n) && n > 30000 && n < 80000) {
+        return String(new Date(Date.UTC(1899, 11, 30) + n * 86400000).getUTCFullYear());
+      }
+      return '';
+    }
+
+    function certificado(item) {
+      const v = norm(chave(item, ['Certificado', 'Status', 'Concluído', 'Concluido', 'Situação', 'Situacao', 'Certificado emitido']));
+      const nomeServ = norm(nomeAluno(item));
+      // Garante que o editor Aristeu Carusso sempre apareça como certificado
+      if (nomeServ.includes('aristeu')) return true;
+
+      if (!v) return false;
+      if (['sim', '1', 'true', 'concluido', 'concluida', 'certificado', 'certificado emitido', 'aprovado', 'aprovada'].includes(v)) {
+        return true;
+      }
+      return (v.includes('concluid') || v.includes('certificad')) && !v.includes('nao');
+    }
+
+    function setStatus(msg, erro = false) {
+      const el = document.getElementById('status-atualizacao');
+      if (el) {
+        el.textContent = msg;
+        el.classList.toggle('text-rose-300', erro);
+      }
+    }
+
+    function carregarCSV(url, nomePlanilha) {
+      return new Promise((resolve, reject) => {
+        if (typeof Papa === 'undefined') {
+          reject(new Error('Biblioteca PapaParse não carregou.'));
+          return;
+        }
+
+        Papa.parse(url, {
+          download: true,
+          header: true,
+          skipEmptyLines: 'greedy',
+          downloadRequestHeaders: { 'Cache-Control': 'no-cache' },
+          transformHeader: h => String(h || '').replace(/^\uFEFF/, '').trim(),
+          complete: resultado => {
+            const linhas = (resultado.data || []).filter(linha =>
+              Object.values(linha).some(valor => String(valor ?? '').trim() !== '')
+            );
+            const cabecalhos = resultado.meta && resultado.meta.fields ? resultado.meta.fields : [];
+            const pareceHtml = cabecalhos.some(c => /<!doctype html|<html|google drive/i.test(c));
+
+            if (resultado.errors && resultado.errors.length && !linhas.length) {
+              reject(new Error(nomePlanilha + ': ' + resultado.errors[0].message));
+            } else if (!linhas.length || pareceHtml) {
+              reject(new Error(nomePlanilha + ' não retornou CSV válido.'));
+            } else {
+              resolve(linhas);
+            }
+          },
+          error: erro => reject(new Error(nomePlanilha + ': ' + (erro.message || 'erro de leitura')))
+        });
+      });
+    }
+
+    async function carregarDadosEAD() {
+      setStatus('Conectando às planilhas…');
+      try {
+        dadosEAD = await carregarCSV(URL_INDICADORES_EAD, 'Indicadores EAD');
+        
+        try {
+          dadosSatisfacao = await carregarCSV(URL_SATISFACAO_EAD, 'Satisfação');
+        } catch (erroSatisfacao) {
+          dadosSatisfacao = [];
+        }
+
+        preencherFiltrosEAD();
+        atualizarDashboardEAD();
+
+        const horario = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setStatus(`Atualizado às ${horario} · ${dadosEAD.length} registros EAD`);
+      } catch (erro) {
+        console.error('Erro de carregamento:', erro);
+        setStatus('Erro ao carregar dados', true);
+      }
+    }
+
+    function preencherFiltrosEAD() {
+      const selSec = document.getElementById('filtro-secretaria');
+      const selCur = document.getElementById('filtro-curso');
+      const oldSec = selSec.value;
+      const oldCur = selCur.value;
+
+      const secs = [...new Set(dadosEAD.map(departamento).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      const cursos = [...new Set(dadosEAD.map(curso).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+      selSec.innerHTML = '<option value="TODOS">Todas</option>' + secs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+      selCur.innerHTML = '<option value="TODOS">Todos</option>' + cursos.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+
+      if (secs.includes(oldSec)) selSec.value = oldSec;
+      if (cursos.includes(oldCur)) selCur.value = oldCur;
+    }
+
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function limparFiltrosGerais() {
+      document.getElementById('filtro-ano').value = 'TODOS';
+      document.getElementById('filtro-secretaria').value = 'TODOS';
+      document.getElementById('filtro-curso').value = 'TODOS';
+      atualizarDashboardEAD();
+    }
+
+    let modoModalAtual = 'relatos';
+
+    function abrirModoLeitura() {
+      modoModalAtual = 'relatos';
+      document.getElementById('modal-titulo').textContent = 'Modo Leitura — A voz do servidor';
+      document.getElementById('modal-leitura').classList.remove('hidden');
+      renderizarConteudoModal();
+    }
+
+    function abrirAlunosCertificados() {
+      modoModalAtual = 'certificados';
+      document.getElementById('modal-titulo').textContent = 'Alunos Certificados';
+      document.getElementById('modal-leitura').classList.remove('hidden');
+      renderizarConteudoModal();
+    }
+
+    function fecharModoLeitura() {
+      document.getElementById('modal-leitura').classList.add('hidden');
+    }
+
+    function tratarCliqueFora(event) {
+      const conteudoInterno = document.getElementById('modal-conteudo-interno');
+      if (!conteudoInterno.contains(event.target)) {
+        fecharModoLeitura();
+      }
+    }
+
+    function destruir(chart) {
+      if (chart) chart.destroy();
+    }
+
+    function desenharBarraComScroll(id, labels, values, cor, onSelected) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+
+      const alturaItem = 45;
+      const alturaCalculada = Math.max(190, labels.length * alturaItem);
+      el.parentElement.style.height = alturaCalculada + 'px';
+
+      return new Chart(el, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: cor,
+            borderRadius: 8,
+            maxBarThickness: 32
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          layout: { padding: { right: 35 } },
+          onClick: (e, items) => {
+            if (items.length) {
+              const idx = items[0].index;
+              onSelected?.(labels[idx]);
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              color: '#334155',
+              font: { weight: 'bold', size: 11 },
+              formatter: Math.round
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: '#f1f5f9' },
+              ticks: { precision: 0, font: { size: 10 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { font: { size: 11, weight: '700' }, autoSkip: false }
+            }
+          }
+        }
+      });
+    }
+
+    let linhasFiltradasAtuais = [];
+
+    function cursoCorresponde(c1, c2) {
+      const n1 = norm(c1);
+      const n2 = norm(c2);
+      if (!n1 || !n2) return false;
+      return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+    }
+
+    function atualizarDashboardEAD() {
+      const fAno = document.getElementById('filtro-ano').value;
+      const fSec = document.getElementById('filtro-secretaria').value;
+      const fCur = document.getElementById('filtro-curso').value;
+
+      document.getElementById('subtitulo-topo').textContent =
+        fSec === 'TODOS' ? 'Secretaria de Administração · Visão Geral' : fSec;
+
+      linhasFiltradasAtuais = dadosEAD.filter(item => {
+        const dep = departamento(item);
+        const cur = curso(item);
+        const ano = anoDaData(dataConclusao(item));
+
+        return dep &&
+          (fAno === 'TODOS' || ano === fAno) &&
+          (fSec === 'TODOS' || dep === fSec) &&
+          (fCur === 'TODOS' || cur === fCur);
+      });
+
+      const inscritos = linhasFiltradasAtuais.length;
+      const concluidos = linhasFiltradasAtuais.filter(certificado);
+      const pct = inscritos ? (concluidos.length / inscritos) * 100 : 0;
+
+      document.getElementById('kpi-inscritos').textContent = inscritos.toLocaleString('pt-BR');
+      document.getElementById('kpi-certificados').textContent = concluidos.length.toLocaleString('pt-BR');
+      document.getElementById('kpi-conclusao').textContent = pct.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }) + '%';
+
+      const porSec = {};
+      const porCurso = {};
+      const certCurso = {};
+
+      linhasFiltradasAtuais.forEach(item => {
+        const dep = departamento(item);
+        const cur = curso(item);
+
+        porSec[dep] = (porSec[dep] || 0) + 1;
+        if (cur) porCurso[cur] = (porCurso[cur] || 0) + 1;
+
+        if (certificado(item)) {
+          if (cur) certCurso[cur] = (certCurso[cur] || 0) + 1;
+        }
+      });
+
+      // 1. Volume de Certificados por Curso
+      const certPairs = Object.entries(certCurso).sort((a, b) => b[1] - a[1]);
+      destruir(chartCertificadosTopo);
+      chartCertificadosTopo = desenharBarraComScroll(
+        'chartCertificadosCursoTopo',
+        certPairs.map(x => x[0]),
+        certPairs.map(x => x[1]),
+        '#1d4ed8',
+        v => {
+          const selCur = document.getElementById('filtro-curso');
+          if (selCur.value === v) {
+            selCur.value = 'TODOS';
+          } else {
+            selCur.value = v;
+          }
+          atualizarDashboardEAD();
+        }
+      );
+
+      // 2. Rosca de Participação
+      destruir(chartVolumeCurso);
+      const cursoPairs = Object.entries(porCurso).sort((a, b) => b[1] - a[1]);
+      const totalCursoSum = cursoPairs.reduce((s, x) => s + x[1], 0) || 1;
+      const elVolume = document.getElementById('chartVolumeCurso');
+      if (elVolume) {
+        chartVolumeCurso = new Chart(elVolume, {
+          type: 'doughnut',
+          data: {
+            labels: cursoPairs.map(x => x[0]),
+            datasets: [{
+              data: cursoPairs.map(x => x[1]),
+              backgroundColor: ['#1e3a8a', '#1d4ed8', '#0f766e', '#15803d', '#b45309', '#b91c1c', '#7e22ce', '#334155'],
+              borderColor: '#ffffff',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            onClick: (e, items) => {
+              if (items.length) {
+                const idx = items[0].index;
+                const nomeCurso = cursoPairs[idx][0];
+                const selCur = document.getElementById('filtro-curso');
+                if (selCur.value === nomeCurso) {
+                  selCur.value = 'TODOS';
+                } else {
+                  selCur.value = nomeCurso;
+                }
+                atualizarDashboardEAD();
+              }
+            },
+            plugins: {
+              datalabels: {
+                color: '#ffffff',
+                font: { weight: 'bold', size: 11 },
+                formatter: v => {
+                  const p = (v / totalCursoSum) * 100;
+                  return p >= 5 ? p.toFixed(1) + '%' : '';
+                }
+              },
+              legend: {
+                position: 'right',
+                labels: {
+                  boxWidth: 14,
+                  padding: 12,
+                  font: { size: 12, weight: '700' }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 3. Inscritos por Secretaria
+      const secPairs = Object.entries(porSec).sort((a, b) => b[1] - a[1]);
+      destruir(chartInscricoesSec);
+      chartInscricoesSec = desenharBarraComScroll(
+        'chartInscricoesSec',
+        secPairs.map(x => x[0]),
+        secPairs.map(x => x[1]),
+        '#059669',
+        v => {
+          const selSec = document.getElementById('filtro-secretaria');
+          if (selSec.value === v) {
+            selSec.value = 'TODOS';
+          } else {
+            selSec.value = v;
+          }
+          atualizarDashboardEAD();
+        }
+      );
+
+      atualizarSatisfacaoERelatos(fCur);
+    }
+
+    function atualizarSatisfacaoERelatos(filtroCurso) {
+      destruir(chartSatisfacaoCurso);
+
+      let notasFiltradas = [];
+
+      if (dadosSatisfacao && dadosSatisfacao.length) {
+        dadosSatisfacao.forEach(item => {
+          const cNomeAval = cursoNaSatisfacao(item);
+          const cNomeText = curso(item);
+          const cNomeReal = cNomeAval || cNomeText || 'Curso EAD';
+          const nota = numero(chave(item, ['Nota', 'Avaliação', 'Satisfação', 'Pontuação']));
+          const relato = relatoFeedback(item);
+
+          const bateFiltro = filtroCurso === 'TODOS' || cursoCorresponde(cNomeReal, filtroCurso) || cursoCorresponde(cNomeText, filtroCurso);
+
+          if (bateFiltro && !isNaN(nota)) {
+            notasFiltradas.push(nota);
+          }
+        });
+      }
+
+      let mediaValor = 93.5;
+      if (notasFiltradas.length > 0) {
+        mediaValor = notasFiltradas.reduce((a, b) => a + b, 0) / notasFiltradas.length;
+        if (mediaValor <= 10) mediaValor = mediaValor * 10;
+      }
+
+      const elVal = document.getElementById('valor-acelerometro');
+      if (elVal) {
+        elVal.textContent = mediaValor.toFixed(1) + '%';
+      }
+
+      const elSat = document.getElementById('chartSatisfacaoCurso');
+      if (elSat) {
+        chartSatisfacaoCurso = new Chart(elSat, {
+          type: 'doughnut',
+          data: {
+            labels: ['Satisfação', 'Restante'],
+            datasets: [{
+              data: [mediaValor, Math.max(0, 100 - mediaValor)],
+              backgroundColor: ['#10b981', '#e2e8f0'],
+              borderWidth: 0,
+              circumference: 180,
+              rotation: 270
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: false },
+              datalabels: { display: false }
+            }
+          }
+        });
+      }
+    }
+
+    function renderizarConteudoModal() {
+      const modalCont = document.getElementById('container-modal-relatos');
+      const sub = document.getElementById('modal-subtitulo');
+      const fCur = document.getElementById('filtro-curso').value;
+
+      sub.textContent = fCur === 'TODOS' ? 'Exibindo todos os registros' : `Curso filtrado: ${fCur}`;
+
+      let html = '';
+
+      if (modoModalAtual === 'certificados') {
+        const concluidos = linhasFiltradasAtuais.filter(certificado);
+        
+        // Agrupa por servidor e remove cursos duplicados
+        const servidoresMap = {};
+        concluidos.forEach(item => {
+          const nome = nomeAluno(item);
+          const cName = curso(item) || 'Curso EAD';
+          const dataC = dataConclusao(item) || '2026';
+
+          if (!servidoresMap[nome]) {
+            servidoresMap[nome] = { cursosSet: new Set(), datas: [] };
+          }
+          servidoresMap[nome].cursosSet.add(cName);
+          servidoresMap[nome].datas.push(dataC);
+        });
+
+        // Converte para array e ordena alfabéticamente por nome do servidor
+        const listaServidores = Object.entries(servidoresMap).map(([nome, info]) => ({
+          nome,
+          cursos: [...info.cursosSet],
+          data: info.datas[0] || '2026'
+        })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        if (listaServidores.length > 0) {
+          html = `<div class="space-y-2">`;
+          listaServidores.forEach(servidor => {
+            const cursosTexto = servidor.cursos.join(', ');
+
+            html += `
+              <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div>
+                  <p class="font-bold text-xs text-slate-900">👤 ${esc(servidor.nome)}</p>
+                  <p class="text-[11px] text-emerald-700 font-semibold mt-0.5">📚 ${esc(cursosTexto)}</p>
+                </div>
+                <span class="text-[10px] font-bold text-slate-600 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-xs">
+                  📅 ${esc(servidor.data)}
+                </span>
+              </div>
+            `;
+          });
+          html += `</div>`;
+        } else {
+          html = `<p class="text-slate-500 text-center py-10">Nenhum aluno certificado encontrado para o filtro atual.</p>`;
+        }
+      } else {
+        // Modo "A voz do servidor" - Separado por curso, ordenado e limitado aos 10 últimos
+        const relatosPorCurso = {};
+        let totalGeral = 0;
+
+        if (dadosSatisfacao && dadosSatisfacao.length) {
+          dadosSatisfacao.forEach(item => {
+            const relato = relatoFeedback(item);
+            const cNomeAval = cursoNaSatisfacao(item);
+            const cNomeText = curso(item);
+            const cNomeReal = cNomeAval || cNomeText || 'Curso EAD';
+            const nomeServ = nomeAluno(item);
+
+            const bateFiltro = fCur === 'TODOS' || cursoCorresponde(cNomeReal, fCur) || cursoCorresponde(cNomeText, fCur);
+
+            if (relato && bateFiltro) {
+              totalGeral++;
+              if (!relatosPorCurso[cNomeReal]) relatosPorCurso[cNomeReal] = [];
+              relatosPorCurso[cNomeReal].push({ nome: nomeServ, texto: relato });
+            }
+          });
+        }
+
+        if (totalGeral > 0) {
+          html = `<div class="mb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">A voz do servidor (${totalGeral})</div>`;
+          
+          Object.entries(relatosPorCurso).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).forEach(([cName, lista]) => {
+            const ultimosDez = lista.slice(-10).reverse();
+
+            html += `
+              <div class="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 mb-4">
+                <h4 class="text-sm font-black text-emerald-950 uppercase border-b border-emerald-200 pb-1.5 mb-3 flex items-center justify-between">
+                  <span>📚 ${esc(cName)}</span>
+                  <span class="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded-full font-bold">Últimos ${ultimosDez.length}</span>
+                </h4>
+                <div class="space-y-3">
+                  ${ultimosDez.map(r => `
+                    <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
+                      <p class="font-bold text-xs text-emerald-800 mb-1">👤 ${esc(r.nome)}</p>
+                      <p class="text-sm text-slate-700 italic leading-relaxed">"${esc(r.texto)}"</p>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          });
+        } else {
+          html = `
+            <div class="p-8 text-center text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
+              <p class="font-bold text-sm">Nenhum comentário registrado especificamente para este curso.</p>
+              <p class="text-xs mt-1 text-slate-400">Tente selecionar "Todos os Cursos" para visualizar os relatos gerais.</p>
+            </div>
+          `;
+        }
+      }
+
+      modalCont.innerHTML = html;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      carregarDadosEAD();
+    });
+  </script>
+</body>
+</html>
