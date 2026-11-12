@@ -455,7 +455,6 @@
 
     function certificado(item) {
       const valorColuna = norm(chave(item, ['Certificado']));
-      // Conta 1 concluído APENAS se o valor da coluna "Certificado" for "concluido"
       return valorColuna === 'concluido';
     }
 
@@ -657,21 +656,21 @@
 
       linhasFiltradasAtuais = dadosEAD.filter(item => {
         const cur = curso(item);
-        if (!cur) return false; // Ignora apenas linhas sem nome de curso
+        if (!cur) return false;
 
         const dep = departamento(item);
         const ano = anoDaData(dataConclusao(item));
 
-        const passaAno = fAno === 'TODOS' || ano === fAno;
-        const passaSec = fSec === 'TODOS' || dep === fSec;
-        const passaCur = fCur === 'TODOS' || cur === fCur;
+        // Se o usuário selecionou um ano específico, exigimos que a linha pertença àquele ano.
+        // Se estiver em 'TODOS', consideramos todas as linhas do curso (mesmo as que ainda não têm data de conclusão).
+        const passaAno = (fAno === 'TODOS') || (ano === fAno);
+        const passaSec = (fSec === 'TODOS') || (dep === fSec);
+        const passaCur = (fCur === 'TODOS') || (cur === fCur);
 
         return passaAno && passaSec && passaCur;
       });
 
-      // Cada linha filtrada de curso_nome = 1 inscrito
       const inscritos = linhasFiltradasAtuais.length;
-      // Cada linha onde Certificado === "Concluído" = 1 concluído
       const concluidos = linhasFiltradasAtuais.filter(certificado);
       const pct = inscritos ? (concluidos.length / inscritos) * 100 : 0;
 
@@ -691,20 +690,16 @@
         const dep = departamento(item);
         const ehConcluido = certificado(item);
 
-        // 1. Conta inscritos por curso (1 linha = 1 inscrito)
         porCurso[cur] = (porCurso[cur] || 0) + 1;
 
-        // 2. Conta concluídos por curso (se Certificado === "Concluído", soma 1)
         if (!certCurso[cur]) certCurso[cur] = 0;
         if (ehConcluido) {
           certCurso[cur] += 1;
         }
 
-        // 3. Conta inscritos por secretaria/departamento
         porSec[dep] = (porSec[dep] || 0) + 1;
       });
 
-      // Montagem dos gráficos com base nos dados tratados
       const labelsCursos = Object.keys(porCurso).sort((a, b) => porCurso[b] - porCurso[a]);
       const valsCursos = labelsCursos.map(c => porCurso[c]);
       const valsCursosCert = labelsCursos.map(c => certCurso[c] || 0);
@@ -755,7 +750,6 @@
         atualizarDashboardEAD();
       });
 
-      // Cálculo de Satisfação / Acelerômetro
       let somaNotas = 0;
       let qtdNotas = 0;
 
@@ -863,7 +857,6 @@
       }
     }
 
-    // Inicialização ao carregar a página
     window.addEventListener('DOMContentLoaded', () => {
       carregarDadosEAD();
     });
