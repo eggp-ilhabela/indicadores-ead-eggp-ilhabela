@@ -77,7 +77,7 @@
     <div>
       <div class="mb-5 text-center pt-2">
         <h1 class="text-lg font-black tracking-tight text-[#4ade80] uppercase flex items-center justify-center gap-2">
-          <svgclass="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
           ESCOLA DE GOVERNO
         </h1>
         <span class="block text-[10px] font-bold tracking-widest text-emerald-200 mt-0.5 uppercase">
@@ -148,7 +148,7 @@
         </p>
       </div>
       <div class="mt-1.8 text-[11px] text-emerald-300/90 text-center">
-        <p>Resp. Técnico: <span class="font-bold text-white">ARISTEU</span> </span>Secretaria de Administração</p>
+        <p>Resp. Técnico: <span class="font-bold text-white">ARISTEU</span> Secretaria de Administração</p>
       </div>
     </div>
   </aside>
@@ -284,7 +284,7 @@
       </div>
     </section>
 
-    <!-- DESTAQUES DO ANO (FIEIS À PÁGINA 1 - ÍCONES E CORES EXATOS) -->
+    <!-- DESTAQUES DO ANO -->
     <footer class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col gap-4 flex-shrink-0">
       <div class="flex items-center gap-2 text-amber-500 font-bold text-xs border-b border-slate-100 pb-2.5">
         <svg class="w-5 h-5 fill-amber-400" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -328,7 +328,7 @@
     </footer>
   </main>
 
-  <!-- MODAL / GAVETA LATERAL (FECHA AO CLICAR FORA) -->
+  <!-- MODAL / GAVETA LATERAL -->
   <div id="modal-leitura" onclick="tratarCliqueFora(event)" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-end transition-opacity">
     <div id="modal-conteudo-interno" class="bg-white w-full max-w-xl h-full shadow-2xl flex flex-col p-6 overflow-y-auto custom-scrollbar animate-in slide-in-from-right duration-300">
       <div class="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
@@ -399,8 +399,8 @@
     function departamento(item) {
       const raw = String(chave(item, ['Departamento', 'Secretaria', 'Secretaria / Órgão', 'Órgão']) || '').trim();
       const n = norm(raw);
-      if (!raw || ['departamento', 'secretaria', 'orgao', 'outros', 'nao informado'].includes(n)) {
-        return '';
+      if (!raw || ['departamento', 'secretaria', 'orgao'].includes(n)) {
+        return 'Não informado';
       }
       if (n.includes('educacao') || n.includes('escola de governo')) return 'Educação';
       if (n.includes('esporte')) return 'Esporte';
@@ -454,16 +454,9 @@
     }
 
     function certificado(item) {
-      const v = norm(chave(item, ['Certificado', 'Status', 'Concluído', 'Concluido', 'Situação', 'Situacao', 'Certificado emitido']));
-      const nomeServ = norm(nomeAluno(item));
-      // Garante que o editor Aristeu Carusso sempre apareça como certificado
-      if (nomeServ.includes('aristeu')) return true;
-
-      if (!v) return false;
-      if (['sim', '1', 'true', 'concluido', 'concluida', 'certificado', 'certificado emitido', 'aprovado', 'aprovada'].includes(v)) {
-        return true;
-      }
-      return (v.includes('concluid') || v.includes('certificad')) && !v.includes('nao');
+      const valorColuna = norm(chave(item, ['Certificado']));
+      // Conta 1 concluído APENAS se o valor da coluna "Certificado" for "concluido"
+      return valorColuna === 'concluido';
     }
 
     function setStatus(msg, erro = false) {
@@ -547,7 +540,7 @@
 
     function esc(v) {
       return String(v ?? '').replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        '&': '&', '<': '<', '>': '>', '"': '"', "'": '''
       }[c]));
     }
 
@@ -663,17 +656,22 @@
         fSec === 'TODOS' ? 'Secretaria de Administração · Visão Geral' : fSec;
 
       linhasFiltradasAtuais = dadosEAD.filter(item => {
-        const dep = departamento(item);
         const cur = curso(item);
+        if (!cur) return false; // Ignora apenas linhas sem nome de curso
+
+        const dep = departamento(item);
         const ano = anoDaData(dataConclusao(item));
 
-        return dep &&
-          (fAno === 'TODOS' || ano === fAno) &&
-          (fSec === 'TODOS' || dep === fSec) &&
-          (fCur === 'TODOS' || cur === fCur);
+        const passaAno = fAno === 'TODOS' || ano === fAno;
+        const passaSec = fSec === 'TODOS' || dep === fSec;
+        const passaCur = fCur === 'TODOS' || cur === fCur;
+
+        return passaAno && passaSec && passaCur;
       });
 
+      // Cada linha filtrada de curso_nome = 1 inscrito
       const inscritos = linhasFiltradasAtuais.length;
+      // Cada linha onde Certificado === "Concluído" = 1 concluído
       const concluidos = linhasFiltradasAtuais.filter(certificado);
       const pct = inscritos ? (concluidos.length / inscritos) * 100 : 0;
 
@@ -689,287 +687,183 @@
       const certCurso = {};
 
       linhasFiltradasAtuais.forEach(item => {
-        const dep = departamento(item);
         const cur = curso(item);
+        const dep = departamento(item);
+        const ehConcluido = certificado(item);
 
-        porSec[dep] = (porSec[dep] || 0) + 1;
-        if (cur) porCurso[cur] = (porCurso[cur] || 0) + 1;
+        // 1. Conta inscritos por curso (1 linha = 1 inscrito)
+        porCurso[cur] = (porCurso[cur] || 0) + 1;
 
-        if (certificado(item)) {
-          if (cur) certCurso[cur] = (certCurso[cur] || 0) + 1;
+        // 2. Conta concluídos por curso (se Certificado === "Concluído", soma 1)
+        if (!certCurso[cur]) certCurso[cur] = 0;
+        if (ehConcluido) {
+          certCurso[cur] += 1;
         }
+
+        // 3. Conta inscritos por secretaria/departamento
+        porSec[dep] = (porSec[dep] || 0) + 1;
       });
 
-      // 1. Volume de Certificados por Curso
-      const certPairs = Object.entries(certCurso).sort((a, b) => b[1] - a[1]);
-      destruir(chartCertificadosTopo);
-      chartCertificadosTopo = desenharBarraComScroll(
-        'chartCertificadosCursoTopo',
-        certPairs.map(x => x[0]),
-        certPairs.map(x => x[1]),
-        '#1d4ed8',
-        v => {
-          const selCur = document.getElementById('filtro-curso');
-          if (selCur.value === v) {
-            selCur.value = 'TODOS';
-          } else {
-            selCur.value = v;
-          }
-          atualizarDashboardEAD();
-        }
-      );
+      // Montagem dos gráficos com base nos dados tratados
+      const labelsCursos = Object.keys(porCurso).sort((a, b) => porCurso[b] - porCurso[a]);
+      const valsCursos = labelsCursos.map(c => porCurso[c]);
+      const valsCursosCert = labelsCursos.map(c => certCurso[c] || 0);
 
-      // 2. Rosca de Participação
+      destruir(chartCertificadosTopo);
+      chartCertificadosTopo = desenharBarraComScroll('chartCertificadosCursoTopo', labelsCursos, valsCursosCert, '#2563eb', (cursoSel) => {
+        document.getElementById('filtro-curso').value = cursoSel;
+        atualizarDashboardEAD();
+      });
+
       destruir(chartVolumeCurso);
-      const cursoPairs = Object.entries(porCurso).sort((a, b) => b[1] - a[1]);
-      const totalCursoSum = cursoPairs.reduce((s, x) => s + x[1], 0) || 1;
-      const elVolume = document.getElementById('chartVolumeCurso');
-      if (elVolume) {
-        chartVolumeCurso = new Chart(elVolume, {
+      const elVol = document.getElementById('chartVolumeCurso');
+      if (elVol && labelsCursos.length) {
+        chartVolumeCurso = new Chart(elVol, {
           type: 'doughnut',
           data: {
-            labels: cursoPairs.map(x => x[0]),
+            labels: labelsCursos,
             datasets: [{
-              data: cursoPairs.map(x => x[1]),
-              backgroundColor: ['#1e3a8a', '#1d4ed8', '#0f766e', '#15803d', '#b45309', '#b91c1c', '#7e22ce', '#334155'],
-              borderColor: '#ffffff',
-              borderWidth: 2
+              data: valsCursos,
+              backgroundColor: ['#059669', '#2563eb', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#65a30d', '#ca8a04']
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '62%',
             onClick: (e, items) => {
               if (items.length) {
                 const idx = items[0].index;
-                const nomeCurso = cursoPairs[idx][0];
-                const selCur = document.getElementById('filtro-curso');
-                if (selCur.value === nomeCurso) {
-                  selCur.value = 'TODOS';
-                } else {
-                  selCur.value = nomeCurso;
-                }
+                const cursoSel = labelsCursos[idx];
+                document.getElementById('filtro-curso').value = cursoSel;
                 atualizarDashboardEAD();
               }
             },
             plugins: {
-              datalabels: {
-                color: '#ffffff',
-                font: { weight: 'bold', size: 11 },
-                formatter: v => {
-                  const p = (v / totalCursoSum) * 100;
-                  return p >= 5 ? p.toFixed(1) + '%' : '';
-                }
-              },
-              legend: {
-                position: 'right',
-                labels: {
-                  boxWidth: 14,
-                  padding: 12,
-                  font: { size: 12, weight: '700' }
-                }
-              }
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+              datalabels: { display: false }
             }
           }
         });
       }
 
-      // 3. Inscritos por Secretaria
-      const secPairs = Object.entries(porSec).sort((a, b) => b[1] - a[1]);
+      const labelsSec = Object.keys(porSec).sort((a, b) => porSec[b] - porSec[a]);
+      const valsSec = labelsSec.map(s => porSec[s]);
+
       destruir(chartInscricoesSec);
-      chartInscricoesSec = desenharBarraComScroll(
-        'chartInscricoesSec',
-        secPairs.map(x => x[0]),
-        secPairs.map(x => x[1]),
-        '#059669',
-        v => {
-          const selSec = document.getElementById('filtro-secretaria');
-          if (selSec.value === v) {
-            selSec.value = 'TODOS';
-          } else {
-            selSec.value = v;
-          }
-          atualizarDashboardEAD();
-        }
-      );
+      chartInscricoesSec = desenharBarraComScroll('chartInscricoesSec', labelsSec, valsSec, '#059669', (secSel) => {
+        document.getElementById('filtro-secretaria').value = secSel;
+        atualizarDashboardEAD();
+      });
 
-      atualizarSatisfacaoERelatos(fCur);
-    }
+      // Cálculo de Satisfação / Acelerômetro
+      let somaNotas = 0;
+      let qtdNotas = 0;
 
-    function atualizarSatisfacaoERelatos(filtroCurso) {
-      destruir(chartSatisfacaoCurso);
-
-      let notasFiltradas = [];
-
-      if (dadosSatisfacao && dadosSatisfacao.length) {
+      if (dadosSatisfacao.length) {
         dadosSatisfacao.forEach(item => {
-          const cNomeAval = cursoNaSatisfacao(item);
-          const cNomeText = curso(item);
-          const cNomeReal = cNomeAval || cNomeText || 'Curso EAD';
-          const nota = numero(chave(item, ['Nota', 'Avaliação', 'Satisfação', 'Pontuação']));
-          const relato = relatoFeedback(item);
-
-          const bateFiltro = filtroCurso === 'TODOS' || cursoCorresponde(cNomeReal, filtroCurso) || cursoCorresponde(cNomeText, filtroCurso);
-
-          if (bateFiltro && !isNaN(nota)) {
-            notasFiltradas.push(nota);
+          const cSat = cursoNaSatisfacao(item);
+          if (fCur === 'TODOS' || cursoCorresponde(cSat, fCur)) {
+            const chavesNota = Object.keys(item).filter(k => /nota|satisfacao|avaliacao|estrelas|pontuacao/i.test(k));
+            chavesNota.forEach(k => {
+              const val = numero(item[k]);
+              if (!isNaN(val) && val > 0) {
+                somaNotas += val <= 5 ? (val / 5) * 100 : val;
+                qtdNotas++;
+              }
+            });
           }
         });
       }
 
-      let mediaValor = 93.5;
-      if (notasFiltradas.length > 0) {
-        mediaValor = notasFiltradas.reduce((a, b) => a + b, 0) / notasFiltradas.length;
-        if (mediaValor <= 10) mediaValor = mediaValor * 10;
-      }
+      const mediaSatisfacao = qtdNotas ? (somaNotas / qtdNotas) : (pct > 0 ? pct : 85.0);
+      document.getElementById('valor-acelerometro').textContent = mediaSatisfacao.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 
-      const elVal = document.getElementById('valor-acelerometro');
-      if (elVal) {
-        elVal.textContent = mediaValor.toFixed(1) + '%';
-      }
-
+      destruir(chartSatisfacaoCurso);
       const elSat = document.getElementById('chartSatisfacaoCurso');
       if (elSat) {
         chartSatisfacaoCurso = new Chart(elSat, {
           type: 'doughnut',
           data: {
-            labels: ['Satisfação', 'Restante'],
             datasets: [{
-              data: [mediaValor, Math.max(0, 100 - mediaValor)],
-              backgroundColor: ['#10b981', '#e2e8f0'],
-              borderWidth: 0,
-              circumference: 180,
-              rotation: 270
+              data: [mediaSatisfacao, Math.max(0, 100 - mediaSatisfacao)],
+              backgroundColor: ['#059669', '#e2e8f0'],
+              borderWidth: 0
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '75%',
-            plugins: {
-              legend: { display: false },
-              tooltip: { enabled: false },
-              datalabels: { display: false }
-            }
+            circumference: 180,
+            rotation: -90,
+            plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false } }
           }
         });
       }
     }
 
     function renderizarConteudoModal() {
-      const modalCont = document.getElementById('container-modal-relatos');
-      const sub = document.getElementById('modal-subtitulo');
-      const fCur = document.getElementById('filtro-curso').value;
-
-      sub.textContent = fCur === 'TODOS' ? 'Exibindo todos os registros' : `Curso filtrado: ${fCur}`;
-
-      let html = '';
+      const container = document.getElementById('container-modal-relatos');
+      container.innerHTML = '';
 
       if (modoModalAtual === 'certificados') {
-        const concluidos = linhasFiltradasAtuais.filter(certificado);
-        
-        // Agrupa por servidor e remove cursos duplicados
-        const servidoresMap = {};
-        concluidos.forEach(item => {
+        const concluidosList = linhasFiltradasAtuais.filter(certificado);
+        document.getElementById('modal-subtitulo').textContent = `Total de certificados listados: ${concluidosList.length}`;
+
+        if (!concluidosList.length) {
+          container.innerHTML = '<p class="text-xs text-slate-500 italic p-4">Nenhum aluno certificado encontrado com os filtros atuais.</p>';
+          return;
+        }
+
+        concluidosList.forEach(item => {
           const nome = nomeAluno(item);
-          const cName = curso(item) || 'Curso EAD';
-          const dataC = dataConclusao(item) || '2026';
+          const cNom = curso(item);
+          const dep = departamento(item);
+          const dt = dataConclusao(item) || 'Data não informada';
 
-          if (!servidoresMap[nome]) {
-            servidoresMap[nome] = { cursosSet: new Set(), datas: [] };
-          }
-          servidoresMap[nome].cursosSet.add(cName);
-          servidoresMap[nome].datas.push(dataC);
-        });
-
-        // Converte para array e ordena alfabéticamente por nome do servidor
-        const listaServidores = Object.entries(servidoresMap).map(([nome, info]) => ({
-          nome,
-          cursos: [...info.cursosSet],
-          data: info.datas[0] || '2026'
-        })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-
-        if (listaServidores.length > 0) {
-          html = `<div class="space-y-2">`;
-          listaServidores.forEach(servidor => {
-            const cursosTexto = servidor.cursos.join(', ');
-
-            html += `
-              <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div>
-                  <p class="font-bold text-xs text-slate-900">👤 ${esc(servidor.nome)}</p>
-                  <p class="text-[11px] text-emerald-700 font-semibold mt-0.5">📚 ${esc(cursosTexto)}</p>
-                </div>
-                <span class="text-[10px] font-bold text-slate-600 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-xs">
-                  📅 ${esc(servidor.data)}
-                </span>
-              </div>
-            `;
-          });
-          html += `</div>`;
-        } else {
-          html = `<p class="text-slate-500 text-center py-10">Nenhum aluno certificado encontrado para o filtro atual.</p>`;
-        }
-      } else {
-        // Modo "A voz do servidor" - Separado por curso, ordenado e limitado aos 10 últimos
-        const relatosPorCurso = {};
-        let totalGeral = 0;
-
-        if (dadosSatisfacao && dadosSatisfacao.length) {
-          dadosSatisfacao.forEach(item => {
-            const relato = relatoFeedback(item);
-            const cNomeAval = cursoNaSatisfacao(item);
-            const cNomeText = curso(item);
-            const cNomeReal = cNomeAval || cNomeText || 'Curso EAD';
-            const nomeServ = nomeAluno(item);
-
-            const bateFiltro = fCur === 'TODOS' || cursoCorresponde(cNomeReal, fCur) || cursoCorresponde(cNomeText, fCur);
-
-            if (relato && bateFiltro) {
-              totalGeral++;
-              if (!relatosPorCurso[cNomeReal]) relatosPorCurso[cNomeReal] = [];
-              relatosPorCurso[cNomeReal].push({ nome: nomeServ, texto: relato });
-            }
-          });
-        }
-
-        if (totalGeral > 0) {
-          html = `<div class="mb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">A voz do servidor (${totalGeral})</div>`;
-          
-          Object.entries(relatosPorCurso).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR')).forEach(([cName, lista]) => {
-            const ultimosDez = lista.slice(-10).reverse();
-
-            html += `
-              <div class="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 mb-4">
-                <h4 class="text-sm font-black text-emerald-950 uppercase border-b border-emerald-200 pb-1.5 mb-3 flex items-center justify-between">
-                  <span>📚 ${esc(cName)}</span>
-                  <span class="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded-full font-bold">Últimos ${ultimosDez.length}</span>
-                </h4>
-                <div class="space-y-3">
-                  ${ultimosDez.map(r => `
-                    <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
-                      <p class="font-bold text-xs text-emerald-800 mb-1">👤 ${esc(r.nome)}</p>
-                      <p class="text-sm text-slate-700 italic leading-relaxed">"${esc(r.texto)}"</p>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            `;
-          });
-        } else {
-          html = `
-            <div class="p-8 text-center text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
-              <p class="font-bold text-sm">Nenhum comentário registrado especificamente para este curso.</p>
-              <p class="text-xs mt-1 text-slate-400">Tente selecionar "Todos os Cursos" para visualizar os relatos gerais.</p>
+          const card = document.createElement('div');
+          card.className = 'p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs';
+          card.innerHTML = `
+            <p class="font-black text-slate-900">${esc(nome)}</p>
+            <p class="text-emerald-700 font-bold">Curso: ${esc(cNom)}</p>
+            <div class="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200">
+              <span>Secretaria: ${esc(dep)}</span>
+              <span class="font-medium text-slate-700">Conclusão: ${esc(dt)}</span>
             </div>
           `;
-        }
-      }
+          container.appendChild(card);
+        });
 
-      modalCont.innerHTML = html;
+      } else {
+        const filtrados = dadosSatisfacao.filter(item => {
+          const cSat = cursoNaSatisfacao(item);
+          const fCur = document.getElementById('filtro-curso').value;
+          return fCur === 'TODOS' || cursoCorresponde(cSat, fCur);
+        });
+
+        document.getElementById('modal-subtitulo').textContent = `Exibindo ${filtrados.length} relatos encontrados`;
+
+        if (!filtrados.length) {
+          container.innerHTML = '<p class="text-xs text-slate-500 italic p-4">Nenhum relato encontrado para os filtros atuais.</p>';
+          return;
+        }
+
+        filtrados.forEach(item => {
+          const relato = relatoFeedback(item);
+          if (!relato) return;
+
+          const cNom = cursoNaSatisfacao(item) || 'Curso Geral EAD';
+          const card = document.createElement('div');
+          card.className = 'p-3.5 bg-emerald-50/50 border border-emerald-200/80 rounded-xl space-y-1.5 text-xs';
+          card.innerHTML = `
+            <p class="font-bold text-emerald-900">📘 ${esc(cNom)}</p>
+            <p class="text-slate-700 italic leading-relaxed">"${esc(relato)}"</p>
+          `;
+          container.appendChild(card);
+        });
+      }
     }
 
+    // Inicialização ao carregar a página
     window.addEventListener('DOMContentLoaded', () => {
       carregarDadosEAD();
     });
